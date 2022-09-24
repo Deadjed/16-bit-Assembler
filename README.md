@@ -2,7 +2,7 @@
 The assembler takes a file written in hack assembly code and converts it to 16 bit binary instructions with a .hack extension.
 
 ## Main Function
-The main function of this program is quite simple. It first stores the assembly programs contents in memory, removing all white space and comments in the process. Then replaces all symbols with their values, removing labels in that process. Finally it converts each line into it's binary equivelent before writing it all to an output file.   
+The main function of this program is quite simple. It first **stores** the assembly programs contents in memory, removing all white space and comments in the process. Then **replaces all symbols** with their values, removing labels in that process. Finally it **converts** each line into it's binary equivelent before writing it all to an output file.   
 
 ```cpp
 int main(int argc, char* argv[])
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 ```
 
 ## Storing The File
-Of course the code is more in depth than that, first lets look at how the program is storing the file while removing comments and white space. The assembly program itself is stored line by line in a vector of strings. This is achieved by opening the file as an f stream, then iterating over each line, then iterating over each character in that line. If that character is not white space it is stored, unless it is a '/' character implying it is a comment and the rest of the line is then ignored until the '\n' character which when hit all stored characters are stores as a line (in a string format) within the vector holding this assembly program. Keeping in mind that only checking of one '/' character is not perfect when two in a row are used to notate a comment, also /* */ notation is completely ignored in this method (assuming those comments exist in this assembly even though I have not seen them).   
+Of course the code is more in depth than that, first lets look at how the program is *storing* the file while removing comments and white space. The assembly program itself is stored line by line in a **vector of strings**. This is achieved by opening the file as an f stream, then iterating over each line, then iterating over each character in that line. If that character is not white space it is stored, unless it is a '/' character implying it is a comment and the rest of the line is then ignored until the '\n' character which when hit all stored characters are stores as a line (in a string format) within the vector holding this assembly program. Keeping in mind that only checking of one '/' character is not perfect when two in a row are used to notate a comment, also /* */ notation is completely ignored in this method (assuming those comments exist in this assembly even though I have not seen them).   
 Once this function reaches the end of file the file is closed and the vector containing the program is returned back to the main function to then be parsed.
 
 ```cpp
@@ -93,7 +93,8 @@ std::vector<std::string> store_file(const char* file_name)
 }
 ```
 ## Parsing Symbols
-
+To parse symbols within the assembly code a map must be made to hold name/value pairs of each symbol and their represented value. I have stored these values as a **map<string, string>** type. Initially filling it with pre defined values such as RAM locations (0-15), the Screen, keyboard etc.. Then iterating over each line storing label names, and the line the iterator is up to, and then removing the label from the code.  
+Once all pre defined symbols and labels are mapped, itterating over each line of code searching for **A instructions** again we can assume that all unknown symbols are now *variables*, and their name is stored in the map along with another iterator starting at 16 (location of first variable).
 ```cpp
 void handle_symbols(std::vector<std::string>& program)
 {
@@ -160,9 +161,18 @@ void handle_symbols(std::vector<std::string>& program)
 	}
 ```
 ## Parsing C Instructions
-
+To parse the **C instructions** I created a class to hold each component of the instruction (Destination, Compare, amd Jump) seperately as a string. Due to the order **Dest = Comp ; Jump**, I decided to iterate over each character of the instruction searching for an '=' character. If found all previous characters will be stored in the classes dest string, then all following characters will be stored in the comp string leaving the jump string null.   
+While searching for the '=' character, we are also searching for the ';' character, if this one is found then all characters before it are stored in the classes comp string, and all following characters are stored in the classes jump string leaving the dest string null.   
 
 ```cpp
+class c_instruct
+{
+public:
+	std::string dest;
+	std::string comp;
+	std::string jump;
+};
+
 // Store dest, comp, and jump in c_instruct.dest c_instruct.comp and c_instruct.jump
 c_instruct handle_c_instruct(std::string instruction)
 {
@@ -218,6 +228,7 @@ c_instruct handle_c_instruct(std::string instruction)
 }
 ```
 ## Converting To Binary
+To convert each instruction to binary is a lot easier once all the parsing has been done. for **A instructions** it is as simple as setting the first bit to '0' and then converting the @ instructions value to a binary value for the following 15 bits to make up it's 16 bit instruction. If the line is not an **A instruction** then it is a **C instruction** and is sent to the parser to seperate each component (*mentioned above*). The **C instruction** is stored as such ```1 1 1 a c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3``` with the c bits representing **comp** bits, d bits representing **dest** bits, and j bits representing **jump** bits. To convert these components to their binary values another symbol table must be made, here I have mapped all of their values to their binary equivelents and stored each line to match the above format via ```program.at(i) = "111" + compbin[line.comp] + destbin[line.dest] + jumpbin[line.jump];``` which access each binary value in the map using the seperated components the parser has supplied us with.
 
 ```cpp
 void binarize(std::vector<std::string>& program)
@@ -298,10 +309,14 @@ void binarize(std::vector<std::string>& program)
 		}
 	}
 }
-
+```
+## Output File
+Output files keep the same name just replacing their **.asm** file extension to a **.hack** one.
+```cpp
 std::string asm_to_hack(char* in)
 {
 	std::filesystem::path p = in;
 	p.replace_extension(".hack");
 	return p.string();
 }
+```
