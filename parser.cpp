@@ -1,74 +1,11 @@
-// map all symbols 
-	// first pass replace pre defined symbols (eg screen, keyboard)
-	// second pass map labels (destinations of goto symbols)
-	// third pass add variables (memory locations of variables)
-
-// remove white space
-
-// handle A and C instructions
-
-// A INSTRUCTIONS (@VALUE)
-// 0ValueInBinary (16 bits total)
-
-
-// C INSTRUCTIONS
-// 1 1 1 a c1 c2 c3 c4 c5 c6 d1 d2 d3 j1 j2 j3
-
-
-/*
-COMP		c1 c2 c3 c4 c5 c6
-0			1  0  1  0  1  0
-1			1  1  1  1  1  1
--1			1  1  1  0  1  0
-D			0  0  1  1  0  0
-A		M	1  1  0  0  0  0
-!D			0  0  1  1  0  1
-!A	   !M	1  1  0  0  0  1
--D			0  0  1  1  1  1
--A	   -M	1  1  0  0  1  1
-D+1			0  1  1  1  1  1
-A+1	   M+1	1  1  0  1  1  1
-D-1			0  0  1  1  1  0
-A-1	   M-1	1  1  0  0  1  0
-D+A	   D+M	0  0  0  0  1  0
-D-A	   D-M	0  1  0  0  1  1
-A-D	   M-D	0  0  0  1  1  1
-D&A	   D&M	0  0  0  0  0  0
-D|A	   D|M	0  1  0  1  0  1
-
-a=0		a=1
-*/
-
-/*
-DEST	d1 d2 d3	effect: the value is stored in:
-null	0  0  0		The value is not stored
-M		0  0  1		RAM[A]
-D		0  1  0		D register
-MD		0  1  1		RAM[A] and D register
-A		1  0  0		A register
-AM		1  0  1		A register and RAM[A]
-AD		1  1  0		A register and D register
-AMD		1  1  1		A register, RAM[A], and D register
-*/
-
-/*
-JUMP	j1 j2 j3	effect
-null	0  0  0		no jump
-JGT		0  0  1		if out > 0 jump
-JEQ		0  1  0		if out = 0 jump
-JGE		0  1  1		if out >= 0 jump
-JLT		1  0  0		if out < 0 jump
-JNE		1  0  1		if out != 0 jump
-JLE		1  1  0		if out <= 0 jump
-JMP		1  1  1		Unconditional jump
-*/
-
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <string>
 #include <map>
-#include <bitset>
+#include <filesystem>
+
+#include "parser.hpp"
 
 std::vector<std::string> store_file(const char* file_name)
 {
@@ -122,31 +59,145 @@ std::vector<std::string> store_file(const char* file_name)
 
 void handle_symbols(std::vector<std::string>& program)
 {
+	
 	// create predefined symbol table
 	std::map<std::string, std::string> symbin;
-
+	
 	// map ram locations
 	for (int i = 0; i < 16; i++)
 	{
-		std::string n = '0' + std::bitset<15>(i).to_string();
-		std::string s = "R" + std::to_string(i);
-		symbin.emplace(s, n);
+		std::string v = std::to_string(i);
+		std::string s = 'R' + std::to_string(i);
+		symbin.emplace(s, v);
 	}
-
+	
+	// map other pre defined locations
+	std::string tmpname = "SCREEN";
+	std::string tmpval = std::to_string(16384);
+	symbin.emplace(tmpname, tmpval);
+	
 	// map goto symbols 
 	for (int i = 0; i < program.size(); i++)
-	{
+	{ 
 		if (program.at(i).at(0) == '(')
 		{
 			std::string tempname;
 			for (int x = 1; x < program.at(i).size() - 1; x++)
 				tempname = tempname + program.at(i).at(x);
-			std::string tempval = '0' + std::bitset<15>(i + 2).to_string();
+			std::string tempval = std::to_string(i);
 			symbin.emplace(tempname, tempval);
+			
+			auto iter = program.begin();
+			for (int x = i; x > 0; x--)
+				iter++;
+			program.erase(iter);
+			i--;
+		}
+	}
+
+	// replace A instructions with binary values
+	int var = 16;
+	for (int i = 0; i < program.size(); i++)
+	{
+		if (program.at(i).at(0) == '@')
+		{
+			program.at(i).erase(0, 1);
+
+			for (auto& m : symbin)
+			{
+				if (program.at(i) == m.first)
+					program.at(i) = '@' + m.second;
+			}
+
+			// if symbol not found replace with binary of variable counter
+			// assuming variables can't start with 0!
+			if (program.at(i).at(0) != '@')
+			{
+				std::string tmp = std::to_string(var);
+				symbin.emplace(program.at(i), tmp);
+				program.at(i) = '@' + tmp;
+				var++;
+			}
 		}
 	}
 
 	// check map values
-	for (auto i : symbin)
-		std::cout << i.first << ": " << i.second << std::endl;
+	std::cout << "Name \tLocation\n";
+	for (auto &i : symbin)
+		std::cout << i.first << ":\t" << i.second << std::endl;
+
+	/*
+	// Warn user of unused variables
+	for (auto &s : symbin)
+	{
+		for (auto ptr = program.begin(); ptr < program.end(); ptr++)
+		{
+			if (*ptr == s.second)
+				break;
+			if (ptr == program.end())
+				std::cerr << "WARNING! variable: " << s.first << " not used!" << std::endl;
+		}
+	}
+	*/
+}
+
+// Store dest, comp, and jump in c_instruct.dest c_instruct.comp and c_instruct.jump
+c_instruct handle_c_instruct(std::string instruction)
+{
+	c_instruct line;
+	std::string temp;
+
+	for (int i = 0; i < instruction.size(); i++)
+	{
+		// if theres a dest bit store that in line.dest
+		if (instruction.at(i) == '=')
+		{
+			for (int x = 0; x < i; ++x)
+				temp = temp + instruction.at(x);
+			line.dest = temp;
+			temp.clear();
+			instruction.erase(0, i + 1);
+			i = 0;
+
+			// store remainder comp 
+			for (int x = 0; x < instruction.size(); x++)
+				temp = temp + instruction.at(x);
+			line.comp = temp;
+			temp.clear();
+			i = 0;
+
+			instruction.clear();
+			break;
+		}
+
+		// store comp in line.dest
+		if (instruction.at(i) == ';')
+		{
+			for (int x = 0; x < i; ++x)
+				temp = temp + instruction.at(x);
+			line.comp = temp;
+			temp.clear();
+			instruction.erase(0, i + 1);
+			i = 0;
+		}
+	}
+	if (line.dest.empty())
+		line.dest = "null";
+	if (instruction.empty())
+		line.jump = "null";
+	else
+	{
+		for (int x = 0; x < instruction.size(); x++)
+			temp = temp + instruction.at(x);
+		line.jump = temp;
+	}
+
+	return line;
+}
+
+std::string asm_to_hack(char* in)
+{
+	std::filesystem::path p = in;
+	p.replace_extension(".hack");
+	return p.string();
 }
