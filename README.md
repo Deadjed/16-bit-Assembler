@@ -1,6 +1,7 @@
 # 16 bit Assembler
 The assembler takes a file written in hack assembly code and converts it to 16 bit binary instructions with a .hack extension.   
-Usage: ```Prompt>SIT111_16_bit_assembler.exe FILENAME.asm```
+Usage: ```Prompt>SIT111_16_bit_assembler.exe FILENAME.asm```   
+[Source Code](https://github.com/Deadjed/16-bit-Assembler)
 
 ## Main Function
 The main function of this program is quite simple. It first **stores** the assembly programs contents in memory, removing all white space and comments in the process. Then **replaces all symbols** with their values, removing labels in that process. Finally it **converts** each line into it's binary equivelent before writing it all to an output file.   
