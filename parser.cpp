@@ -16,7 +16,7 @@ std::vector<std::string> store_file(const char* file_name)
 	infile.open(file_name);
 	if (!infile)
 	{
-		std::cerr << "Unable to open file: " << "Mult.asm";
+		std::cerr << "Unable to open file: " << file_name;
 		exit(1);
 	}
 
@@ -60,8 +60,16 @@ std::vector<std::string> store_file(const char* file_name)
 void handle_symbols(std::vector<std::string>& program)
 {
 	
-	// create predefined symbol table
-	std::map<std::string, std::string> symbin;
+	// create predefined symbol table, initialize with pre defined values
+	std::map<std::string, std::string> symbin{
+		{"SCREEN", "16384"},	// Screen
+		{"KBD", "24576"},		// Keyboard
+		{"SP", "0"},
+		{"LCL", "1"},
+		{"ARG", "2"},
+		{"THIS", "3"},
+		{"THAT", "4"}
+	};
 	
 	// map ram locations
 	for (int i = 0; i < 16; i++)
@@ -70,11 +78,6 @@ void handle_symbols(std::vector<std::string>& program)
 		std::string s = 'R' + std::to_string(i);
 		symbin.emplace(s, v);
 	}
-	
-	// map other pre defined locations
-	std::string tmpname = "SCREEN";
-	std::string tmpval = std::to_string(16384);
-	symbin.emplace(tmpname, tmpval);
 	
 	// map goto symbols 
 	for (int i = 0; i < program.size(); i++)

@@ -1,5 +1,6 @@
 # 16 bit Assembler
-The assembler takes a file written in hack assembly code and converts it to 16 bit binary instructions with a .hack extension.
+The assembler takes a file written in hack assembly code and converts it to 16 bit binary instructions with a .hack extension.   
+Usage: ```Prompt>SIT111_16_bit_assembler.exe FILENAME.asm```
 
 ## Main Function
 The main function of this program is quite simple. It first **stores** the assembly programs contents in memory, removing all white space and comments in the process. Then **replaces all symbols** with their values, removing labels in that process. Finally it **converts** each line into it's binary equivelent before writing it all to an output file.   
@@ -99,8 +100,16 @@ Once all pre defined symbols and labels are mapped, itterating over each line of
 void handle_symbols(std::vector<std::string>& program)
 {
 	
-	// create predefined symbol table
-	std::map<std::string, std::string> symbin;
+	// create predefined symbol table, initialize with pre defined values
+	std::map<std::string, std::string> symbin{
+		{"SCREEN", "16384"},	// Screen
+		{"KBD", "24576"},		// Keyboard
+		{"SP", "0"},
+		{"LCL", "1"},
+		{"ARG", "2"},
+		{"THIS", "3"},
+		{"THAT", "4"}
+	};
 	
 	// map ram locations
 	for (int i = 0; i < 16; i++)
@@ -109,11 +118,6 @@ void handle_symbols(std::vector<std::string>& program)
 		std::string s = 'R' + std::to_string(i);
 		symbin.emplace(s, v);
 	}
-	
-	// map other pre defined locations
-	std::string tmpname = "SCREEN";
-	std::string tmpval = std::to_string(16384);
-	symbin.emplace(tmpname, tmpval);
 	
 	// map goto symbols 
 	for (int i = 0; i < program.size(); i++)
@@ -159,6 +163,12 @@ void handle_symbols(std::vector<std::string>& program)
 			}
 		}
 	}
+
+	// check map values
+	std::cout << "Name \tLocation\n";
+	for (auto &i : symbin)
+		std::cout << i.first << ":\t" << i.second << std::endl;
+}
 ```
 ## Parsing C Instructions
 To parse the **C instructions** I created a class to hold each component of the instruction (Destination, Compare, amd Jump) seperately as a string. Due to the order **Dest = Comp ; Jump**, I decided to iterate over each character of the instruction searching for an '=' character. If found all previous characters will be stored in the classes dest string, then all following characters will be stored in the comp string leaving the jump string null.   
