@@ -74,7 +74,7 @@ void binarize(std::vector<std::string>& program)
 		if (program.at(i).at(0) == '@')
 		{
 			program.at(i).erase(0, 1);
-			program.at(i) = '0' + std::bitset<15>(std::stoi(program.at(i))).to_string();
+			program.at(i) = '0' + std::bitset<15>(std::stol(program.at(i))).to_string();
 		}
 		else
 		{

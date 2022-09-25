@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <filesystem>
+#include <string.h>
 
 #include "parser.hpp"
 
@@ -102,6 +103,7 @@ void handle_symbols(std::vector<std::string>& program)
 	int var = 16;
 	for (int i = 0; i < program.size(); i++)
 	{
+		
 		if (program.at(i).at(0) == '@')
 		{
 			program.at(i).erase(0, 1);
@@ -111,23 +113,37 @@ void handle_symbols(std::vector<std::string>& program)
 				if (program.at(i) == m.first)
 					program.at(i) = '@' + m.second;
 			}
+			
 
 			// if symbol not found replace with binary of variable counter
-			// assuming variables can't start with 0!
+			// assuming variables can't start with @!
 			if (program.at(i).at(0) != '@')
 			{
-				std::string tmp = std::to_string(var);
-				symbin.emplace(program.at(i), tmp);
-				program.at(i) = '@' + tmp;
+				// if constant number used store that value instead
+				if (isdigit(program.at(i).at(0)))
+				{
+					program.at(i) = '@' + program.at(i);
+					continue;
+				}
+
+				std::string varval = std::to_string(var);
+				std::string const varname = program.at(i);
+				std::cout << varname << ": " << varval << "\n";
+				symbin.emplace(varname, varval);
+				std::cout << symbin[program.at(i)] << "\n";
+				program.at(i) = '@' + varval;
 				var++;
+				
 			}
 		}
 	}
 
 	// check map values
-	std::cout << "Name \tLocation\n";
-	for (auto &i : symbin)
-		std::cout << i.first << ":\t" << i.second << std::endl;
+	//std::cout << "Name \tLocation\n";
+	//for (auto &i : symbin)
+		//std::cout << i.first << ":\t" << i.second << std::endl;
+
+
 
 	/*
 	// Warn user of unused variables
